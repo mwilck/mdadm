@@ -1,7 +1,18 @@
 name: tests
 on:
-  schedule:
-    - cron: "0 0 * * *"
+  #schedule:
+  #  - cron: "0 0 * * *"
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - '*.c'
+      - '*.h'
+      - 'tests/*'
+      - 'test'
+      - '.github/workflows/*'
+      - '.github/tools/*'
   pull_request:
     paths:
       - '*.c'
@@ -11,40 +22,40 @@ on:
       - '.github/*'
       - '.github/workflows/*'
       - '.github/tools/*'
+  workflow_dispatch:
 jobs:
   upstream_tests:
-     if: ${{ github.repository == 'md-raid-utilities/mdadm' }}
-     runs-on: self-hosted
+     runs-on: ubuntu:latest
      timeout-minutes: 150
      name: upstream tests
      steps:
      - uses: actions/checkout@v5
-       if: ${{ github.event_name == 'pull_request' }}
+       if: ${{ github.event_name != 'schedule' }}
        with:
-        ref: ${{ github.event.pull_request.head.sha }}
         fetch-depth: 0
      - uses: actions/checkout@v5
        if: ${{ github.event_name == 'schedule' }}
        with:
-        ref: main
+        ref: master
         fetch-depth: 0
-     - name: 'Prepare machine'
-       run: |
-          cd ..
-          # to upgrade the VMs to Fed42, comment the next line out and uncomment the one below that.
-          vagrant snapshot restore clean_vm_v1
-          # vagrant snapshot restore clean_vm_v42
-          echo "FYI vagrant restore command finished with exit code: $?"
-          sleep 2
-          vagrant status
-          vagrant up
-          sleep 2
-          vagrant ssh -c "sudo timedatectl set-timezone UTC && \
-            sudo systemctl restart chronyd && sudo chronyc -a makestep && sleep 1 && uname -r"
-          echo "FYI vagrant time command finished with exit code: $?"
 
-     - name: Export RUNNER_NAME
-       run: echo "RUNNER_NAME=$RUNNER_NAME" >> $GITHUB_ENV
+     - name: Install build dependencies
+       run: >-
+         sudo apt-get install
+         --yes --no-upgrade --no-install-recommends --no-install-suggests
+         make gcc libudev-dev devscripts
+
+     - name: Build mdadm
+       run: make -j$(nproc) BINDIR=/usr/sbin
+
+     - name: Install mdadm
+       run: sudo make BINDIR=/usr/sbin install-bin
+
+     - name: Check mdadm
+       run: which mdadm
+
+     - name: Fail
+       run: false
 
      - name: 'Run tests'
        id: testing
