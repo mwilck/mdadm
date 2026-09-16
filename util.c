@@ -808,11 +808,11 @@ char *human_size(long long bytes)
 		/* Compute bytes/2^40 * 100 (rounded) without letting
 		 * "bytes * 200" overflow a signed 64bit value: split
 		 * into a whole-TiB part and a remainder (< 2^40) and
-		 * only multiply the (bounded) remainder by 200.
+		 * only multiply the (bounded) remainder by 100.
 		 */
 		long long whole = bytes >> 40;
 		long long rem = bytes & ((1LL << 40) - 1);
-		long cTiB = whole * 100 + (((rem * 200LL) >> 40) + 1) / 2;
+		long cTiB = whole * 100 + ((rem * 100LL + (1LL << 39)) >> 40);
 		long cTB  = (bytes / (1000000000000LL / 200LL) + 1) / 2;
 		snprintf(buf, sizeof(buf), " (%ld.%02ld TiB %ld.%02ld TB)",
 			cTiB/100, cTiB % 100, cTB/100, cTB % 100);
@@ -856,7 +856,7 @@ char *human_size_brief(long long bytes, int prefix)
 			long long whole = bytes >> 40;
 			long long rem = bytes & ((1LL << 40) - 1);
 			long cTiB = whole * 100 +
-				(((rem * 200LL) >> 40) + 1) / 2;
+				((rem * 100LL + (1LL << 39)) >> 40);
 			snprintf(buf, sizeof(buf), "%ld.%02ldTiB",
 				 cTiB/100, cTiB % 100);
 		}
